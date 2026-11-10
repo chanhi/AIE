@@ -15,7 +15,7 @@ Send ONE message listing these, each with its default, and say "비워 두면 �
 2. 이름·성별·나이·출신(억양) — 기본: 추천
 3. 성격·관심사·말투 — 기본: 추천
 4. 레벨: A2(기초) / B1(중급, 현재 기본) / B2(중상급) / C1(고급)
-5. 먼저 말 걸기: 활동 시간대(기본 08:00-18:00), 주제 종료 후 대기(기본 3시간), 하루 최대 횟수(기본 2), 방치 주제 자동 종료(기본 24시간), 사용 여부(기본 사용)
+5. 먼저 말 걸기: 활동 시간대(기본 08:00-18:00), 주제 종료 후 대기(기본 3시간), 하루 최대 횟수(기본 2), 방치 주제 자동 종료(기본 24시간), 사용 여부(기본 사용), 받을 곳(기본 Desktop / Discord는 이 대상 전용 Discord 봇이 필요 — README 'Discord 연결' 참고)
 6. 모델: 기본 openai-codex / gpt-6.1-sol (사용 가능한 provider는 `python "${HERMES_SKILL_DIR}/../../scripts/aie.py" providers`)
 
 ## Step 2 — fill gaps and confirm
@@ -48,3 +48,5 @@ Send ONE message listing these, each with its default, and say "비워 두면 �
 3. On success reply in Korean: created bot name, where to find it (Desktop **Bots 탭**), and when it will first
    talk (next scheduler tick inside its active window, usually within 30 minutes), plus how to change settings
    later (`personas/<id>/persona.toml` 수정 후 deploy) and remove it (`/remove-persona <id>`).
+   If they chose Discord: tell them the bot works on Desktop first; to switch, follow README 'Discord 연결'
+   (create the Discord app, `hermes -p <id> gateway setup`, DM the bot once, then deploy).

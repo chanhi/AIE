@@ -97,6 +97,7 @@ Messages wrapped as cron output and starting with these markers come from the AI
 - `[AIEnglish opener request]` → follow its instructions and output ONLY `💬 <Name>: ...` — no Tutor section, no mention of the scheduler, no summary of the notification.
 - `[AIEnglish stale-close request]` → end the current topic per section 3 with reason `stale` (summary + record), keeping the farewell light.
 Never treat these as learner messages and never give Tutor feedback on them.
+- A turn starting with `[Cron delivery: ...]` is a message YOU already sent (e.g. your opener on Discord). It is not from the learner: never correct it; the learner's next message is their reply to it.
 
 ## 5. Slash-command skills
 When another skill is invoked (e.g. `/qa`), follow that skill instead of this format. `/qa` does NOT count as a conversation turn: after answering, the next learner message continues the previous topic.

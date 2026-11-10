@@ -17,7 +17,8 @@ PERSONA_FIELDS = ("age", "gender", "origin", "accent", "occupation", "traits", "
                   "speech_style", "feedback_focus", "topic_themes")
 LIST_FIELDS = ("traits", "interests", "topic_themes")
 DEFAULT_SCHEDULE = {"enabled": True, "idle_after_topic_end_h": 3, "active_window": "08:00-18:00",
-                    "max_openers_per_day": 2, "stale_active_close_h": 24, "tick": "30m"}
+                    "max_openers_per_day": 2, "stale_active_close_h": 24, "tick": "30m",
+                    "proactive_channel": "desktop"}
 DEFAULT_MODEL = {"provider": "openai-codex", "model": "gpt-6.1-sol"}
 
 
@@ -88,6 +89,8 @@ def validate(spec: dict, existing_ids: set[str], existing_profiles: set[str],
     if str(sch["tick"]) not in TICKS:
         errs.append(f"schedule.tick은 {', '.join(TICKS)} 중 하나여야 해요")
     sch["enabled"] = bool(sch.get("enabled", True))
+    if sch["proactive_channel"] not in ("desktop", "discord"):
+        errs.append("schedule.proactive_channel은 desktop 또는 discord여야 해요")
 
     model = {**DEFAULT_MODEL, **(spec.get("model") or {})}
     if providers is not None and model["provider"] not in providers:

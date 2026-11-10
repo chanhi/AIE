@@ -72,12 +72,59 @@ def last_user_message_at(pid: str) -> float | None:
             f"""SELECT MAX(m.timestamp) FROM messages m JOIN sessions s ON s.id = m.session_id
                WHERE m.role = 'user'
                  AND COALESCE(m.display_kind, '') != 'internal_notification'
+                 AND m.content NOT LIKE '[Cron delivery:%'
                  AND (s.title = 'Bot Chat' OR s.source IN ({marks}))""",
             CHAT_SOURCES,
         ).fetchone()
         return row[0] if row and row[0] else None
     finally:
         con.close()
+
+
+def _ro(pid: str):
+    db = hermes_root() / "profiles" / pid / "state.db"
+    if not db.exists():
+        return None
+    return sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True, timeout=5)
+
+
+def discord_dm_chat_id(pid: str) -> str | None:
+    """Chat id of the learner's most recent Discord DM with this persona's bot (None if never DMed)."""
+    con = _ro(pid)
+    if con is None:
+        return None
+    try:
+        row = con.execute("""SELECT chat_id FROM sessions WHERE source = 'discord' AND chat_type = 'dm'
+                             AND chat_id IS NOT NULL ORDER BY COALESCE(last_activity_at, started_at) DESC
+                             LIMIT 1""").fetchone()
+        return str(row[0]) if row else None
+    finally:
+        con.close()
+
+
+def recent_dm_messages(pid: str, since: float = 0, limit: int = 12) -> list[str]:
+    """Readable recent turns of the Discord DM (oldest first), skipping tool/system noise."""
+    con = _ro(pid)
+    if con is None:
+        return []
+    try:
+        rows = con.execute(
+            """SELECT m.role, m.content FROM messages m JOIN sessions s ON s.id = m.session_id
+               WHERE s.source = 'discord' AND s.chat_type = 'dm' AND m.role IN ('user','assistant')
+                 AND m.timestamp > ? AND COALESCE(m.content,'') != ''
+               ORDER BY m.timestamp DESC LIMIT ?""", (since, limit)).fetchall()
+    finally:
+        con.close()
+    out = []
+    for role, content in reversed(rows):
+        text = content.strip()
+        if text.startswith("[IMPORTANT: The user has invoked"):
+            continue  # slash-command skill bodies
+        if text.startswith("[Cron delivery:"):
+            role, text = "assistant", text.split("\n", 1)[-1]
+        who = "Learner" if role == "user" else "You"
+        out.append(f"{who}: {text[:400]}")
+    return out
 
 
 def in_window(now: datetime, window: str) -> bool:
@@ -121,6 +168,41 @@ def opener_request(pid: str, cfg: dict, st: dict) -> str:
     ])
 
 
+def discord_opener_request(pid: str, cfg: dict, st: dict) -> str:
+    recent = recent_dm_messages(pid, limit=8)
+    return "\n".join([
+        opener_request(pid, cfg, st),
+        "",
+        "Recent messages in your Discord chat with the learner (for continuity; don't repeat them):",
+        "\n".join(recent) or "(none)",
+        "",
+        "You are running as a scheduled job: no tools are needed. Your final answer is sent to the learner "
+        "as-is. It must be exactly ONE line starting with '💬 " + cfg["display_name"] + ":' — NO 📘 Tutor "
+        "section, no expression tips, nothing after that line. (The Tutor only comments on learner messages.)",
+    ])
+
+
+def discord_stale_request(pid: str, cfg: dict, hours: float, since: float) -> str:
+    convo = recent_dm_messages(pid, since=since, limit=30)
+    name = cfg["display_name"]
+    return "\n".join([
+        "[AIEnglish stale-close request]",
+        f"The learner hasn't replied for {hours:g}+ hours, so the current topic is being closed now.",
+        "You are running as a scheduled job: do NOT use tools and do NOT run any command — just write the message.",
+        "Output exactly this shape (persona line in English, Tutor part in Korean), nothing else:",
+        f"💬 {name}: <one light, friendly farewell for this topic — no guilt-tripping>",
+        "---",
+        "📘 Tutor: 📝 이번 주제 정리",
+        "- 잘한 표현: ...",
+        "- 자주 틀린 점: ... (최대 3개, 각 1줄; 없으면 '없음')",
+        "- 새로 배운 표현: ...",
+        "- 다음에 연습할 것: ...",
+        "",
+        "The topic's conversation (Learner = the learner, You = you):",
+        "\n".join(convo) or "(no messages found)",
+    ])
+
+
 def stale_request(cfg: dict, hours: float) -> str:
     return "\n".join([
         "[AIEnglish stale-close request]",
@@ -131,8 +213,9 @@ def stale_request(cfg: dict, hours: float) -> str:
     ])
 
 
-def decide(pid: str, now_dt: datetime, force: bool = False) -> tuple[str, str | None, dict]:
-    """Return (decision, message_or_None, new_state)."""
+def decide(pid: str, now_dt: datetime, force: bool = False,
+           mode: str = "botchat") -> tuple[str, str | None, dict]:
+    """Return (decision, message_or_None, new_state). mode: botchat (Desktop) | agent (Discord job)."""
     cfg = tomllib.loads((ROOT / "personas" / pid / "persona.toml").read_text(encoding="utf-8"))
     sch = cfg.get("schedule", {})
     st = topics.load_state(pid)
@@ -164,6 +247,8 @@ def decide(pid: str, now_dt: datetime, force: bool = False) -> tuple[str, str | 
         if now - (st.get("stale_requested_at") or 0) < STALE_REQUEST_COOLDOWN_H * 3600:
             return "stale-request-pending", None, st
         st["stale_requested_at"] = now
+        if mode == "agent":
+            return "stale-close-request", discord_stale_request(pid, cfg, stale_h, last_end), st
         return "stale-close-request", stale_request(cfg, stale_h), st
 
     # IDLE
@@ -178,6 +263,8 @@ def decide(pid: str, now_dt: datetime, force: bool = False) -> tuple[str, str | 
         return f"daily-limit({sent_today}/{max_per_day})", None, st
     openers.append(now)
     st["openers"] = openers
+    if mode == "agent":
+        return "opener", discord_opener_request(pid, cfg, st), st
     return "opener", opener_request(pid, cfg, st), st
 
 
@@ -187,14 +274,20 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="print decision, don't save state")
     ap.add_argument("--now", help="override current local time (ISO), for testing")
     ap.add_argument("--force", action="store_true", help="ignore window/idle/limit (testing)")
+    ap.add_argument("--mode", choices=("botchat", "agent"), default="botchat",
+                    help="botchat: print request for --deliver bot-chat (no-agent job); "
+                         "agent: gate an agent job (Discord) — prints request or {\"wakeAgent\": false}")
     a = ap.parse_args()
+    skip = '{"wakeAgent": false}' if a.mode == "agent" else ""
     now_dt = datetime.fromisoformat(a.now) if a.now else datetime.now()
     try:
-        decision, msg, st = decide(a.pid, now_dt, a.force)
+        decision, msg, st = decide(a.pid, now_dt, a.force, a.mode)
     except Exception as e:  # never spam the chat with a traceback; log and stay silent
         log(a.pid, f"ERROR {type(e).__name__}: {e}")
         if a.dry_run:
             raise
+        if skip:
+            print(skip)
         return
     if a.dry_run:
         print(f"[dry-run] decision={decision}")
@@ -204,9 +297,14 @@ def main():
     if decision not in ("active", "outside-window", "disabled", "stale-request-pending") \
             and not decision.startswith(("idle-too-short", "daily-limit", "stale-but")):
         topics.save_state(a.pid, st)
-    log(a.pid, f"decision={decision}")
+        if a.mode == "agent" and decision == "stale-close-request":
+            # the scheduled agent can't run aie.py (no tools in cron), so record the end here
+            topics.end_topic(a.pid, "stale", {"title": "(auto-closed after inactivity)"})
+    log(a.pid, f"decision={decision} mode={a.mode}")
     if msg:
         print(msg)
+    elif skip:
+        print(skip)
 
 
 if __name__ == "__main__":

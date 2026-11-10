@@ -20,13 +20,14 @@ def ts(s: str) -> float:
 
 
 class GateTest(unittest.TestCase):
-    def run_gate(self, now, state=None, last_user=None, force=False):
+    def run_gate(self, now, state=None, last_user=None, force=False, mode="botchat"):
         st = topics._empty_state()
         st.update(state or {})
         with mock.patch.object(topics, "load_state", return_value=st), \
              mock.patch.object(idle_gate, "last_user_message_at", return_value=last_user), \
-             mock.patch.object(topics, "suggest_topic", return_value="food"):
-            return idle_gate.decide("friend", datetime.fromisoformat(now), force)
+             mock.patch.object(topics, "suggest_topic", return_value="food"), \
+             mock.patch.object(idle_gate, "recent_dm_messages", return_value=["Learner: hi", "You: hey!"]):
+            return idle_gate.decide("friend", datetime.fromisoformat(now), force, mode)
 
     def test_first_ever_opener_in_window(self):
         d, msg, st = self.run_gate("2026-11-10T10:00")
@@ -94,6 +95,20 @@ class GateTest(unittest.TestCase):
     def test_force_overrides_window(self):
         d, _, _ = self.run_gate("2026-11-10T22:00", force=True)
         self.assertEqual(d, "opener")
+
+
+    def test_agent_mode_opener_has_dm_context(self):
+        d, msg, _ = self.run_gate("2026-11-10T10:00", mode="agent")
+        self.assertEqual(d, "opener")
+        self.assertIn("Recent messages in your Discord chat", msg)
+        self.assertIn("Learner: hi", msg)
+
+    def test_agent_mode_stale_is_tool_free_summary(self):
+        d, msg, _ = self.run_gate("2026-11-11T12:00", {"last_end_at": ts("2026-11-10T08:00")},
+                                  last_user=ts("2026-11-10T10:00"), mode="agent")
+        self.assertEqual(d, "stale-close-request")
+        self.assertIn("do NOT use tools", msg)
+        self.assertIn("📝 이번 주제 정리", msg)
 
 
 if __name__ == "__main__":

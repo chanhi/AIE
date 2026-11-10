@@ -29,6 +29,19 @@ Hermes Desktop의 **Bots 탭**에서 대상(Bot)과 영어로 대화하면, 대�
 - 대화 중 24시간 무응답 → Bot이 주제 정리 / 먼저 건 말에 답이 없으면 조용히 종료
 - 설정 변경: `personas/<id>/persona.toml`의 `[schedule]` 수정 → `python scripts/aie.py persona deploy <id>`
 
+## Discord 연결 (대상별)
+대상마다 Discord 봇 1개를 만들어 1:1 DM으로 대화합니다. (현재: Jake)
+1. [Developer Portal](https://discord.com/developers/applications) → New Application → **Bot**: Server Members Intent·Message Content Intent **ON**, 토큰 복사
+2. 터미널: `hermes -p <id> gateway setup` → Discord 선택 → 토큰 입력 (채팅에 토큰을 붙여 넣지 마세요)
+3. **초대는 반드시 bot 범위가 있는 링크로**: `https://discord.com/oauth2/authorize?client_id=<APP_ID>&scope=bot+applications.commands&permissions=309237763136`
+   (포털 기본 Install 링크는 명령어만 설치되고 봇이 서버에 안 들어와 DM이 막힘)
+4. 허용 사용자는 **숫자 ID**로: `hermes -p <id> config set DISCORD_ALLOWED_USERS <내 Discord 숫자 ID>` → Hermes Desktop 재시작
+5. 봇에게 DM 한 번 보내기 → `personas/<id>/persona.toml`의 `[schedule] proactive_channel = "discord"` → `python scripts/aie.py persona deploy <id>`
+
+Discord에서 명령어: `/qa 질문`을 일반 메시지로 보내거나(팝업 목록은 고르지 말고 Enter), `/skill` → name `qa`, args `질문`. `/undo` 등 Hermes 기본 명령도 사용 가능.
+Desktop 대화와 Discord DM은 별개 대화입니다(기억·학습 기록은 공유). Discord로 먼저 말 걸기를 켜면 Desktop으로는 오지 않습니다.
+Discord에서 24시간 방치된 주제는 정리 메시지는 오지만 틀린 문장 상세 기록은 남지 않습니다(`/end`·작별 인사로 끝내면 정상 기록).
+
 ## 문제 해결
 | 증상 | 원인 / 해결 |
 |---|---|

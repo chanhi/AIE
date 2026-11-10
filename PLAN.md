@@ -215,6 +215,18 @@ ACTIVE ──(24h 무응답, cron이 감지)──▶ 자동 요약·종료 ─�
 - 오프너 요청에 "네가 아는 정보(그 대상 전용)"와 "공유 학습 결과"를 분리해 주입. `english-chat-core`에 "다른 사람에게 한 이야기를 아는 척하지 않기" 규칙 추가. `/remove-persona --purge` 시 facts도 삭제.
 - 마이그레이션: 기존 9개를 로그 출처대로 이동 (partner 8, coworker 1), learner.md는 학습 결과만 남김.
 
+## 6.13 Phase 7a — Discord 연동 (Jake) ✅ (2026-11-10)
+
+- 구조: 대상별 Discord 봇(앱) 1개 → 해당 Profile `.env`에 토큰, 멀티플렉스 게이트웨이가 자동 서비스. 1:1 DM 사용.
+- 설치 중 겪은 문제: ① 포털 기본 Install 링크(`applications.commands`만) → 봇이 서버 미가입, DM 불가 → `scope=bot+applications.commands` 링크로 재초대. ② 마법사가 허용 사용자를 사용자명으로 저장했는데 봇이 서버 0개 상태에서 접속해 ID 변환 실패 → 모든 메시지 거부 → 숫자 ID로 설정 후 재시작. ③ Discord 의존성 실행 중 자동 설치 직후 `discord.DMChannel` None 오류 → Desktop 재시작으로 해소.
+- 명령어: 우리 skill은 Discord 네이티브 `/skill name:<skill> args:<...>`로 등록. `/qa ...` 일반 메시지도 동작 확인.
+- **Discord 먼저 말 걸기**: `persona.toml [schedule] proactive_channel = "discord"` → deploy가 agent cron 생성(`--script` gate `--mode agent`, 조건 미충족 시 `{"wakeAgent": false}`) + `deliver discord:<DM chat_id>`(state.db에서 자동 탐색, git에 안 올라감) + **`attach_to_session: true`**·`enabled_toolsets: []`(CLI 미지원 → Hermes `cron.jobs.update_job`으로 설정).
+  - 검증: DM에서는 스레드 없이 같은 DM 세션에 `[Cron delivery: …]` user 턴으로 미러링 → 답장 시 Jake가 자기 질문을 이어받음(점심 질문 → "kimchi fried rice" 답장 → 맥락 유지, Tutor는 학습자 문장만 교정).
+  - 미러 턴이 role=user라 gate가 학습자 답장으로 오인 → `[Cron delivery:` 제외. `english-chat-core`에 "이 턴은 내가 보낸 말, 교정 금지" 추가.
+  - 오프너에 Tutor 팁이 붙는 문제 → SOUL 하드룰 예외 + job 프롬프트 강화 → 로컬 전달 테스트 3/3 깨끗.
+  - 24h 방치(Discord): cron 에이전트는 도구 없음 → gate가 DM 대화 내용을 넣어 작별+정리 메시지 생성, 종료 기록은 gate가 직접(reason=stale, 실수 상세 없음). 로컬 테스트 확인.
+- 테스트 단위 13개 통과. 테스트로 Jake DM에 오프너 3건이 실제 전송됨(점심/게임/한국 여행).
+
 ## 7. 단계별 실행 계획
 
 **Phase 0 — 기능 검증 (반나절)**

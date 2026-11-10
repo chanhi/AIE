@@ -67,6 +67,12 @@ All user-facing text (plans, reports, Tutor feedback) in Korean; persona chat in
 - Fresh clone: install Hermes + `hermes auth` → `cp local.example.toml local.toml` (set `[routines] enabled = false` on a dev-only PC so two PCs don't both message the learner) → `python scripts/aie.py persona deploy --all` (creates `data/learner.json` from the example) → `hermes skills trust`.
 - Main PC = this one (runs routines). Second PC = Discord-integration dev only, routines off.
 
+## Discord (Phase 7a)
+- One Discord app per persona; token via `hermes -p <id> gateway setup` (user runs it; never accept tokens in chat). Invite link MUST include `scope=bot+applications.commands` (portal default install = commands only → bot in 0 guilds → DMs blocked). Set `DISCORD_ALLOWED_USERS` to the numeric user id (username resolution fails if the bot joined no guild at connect time). After Discord deps auto-install, restart Desktop (stale `discord` module → `DMChannel` NoneType errors).
+- Diagnose with the bot token via Discord REST (`/users/@me/guilds`, `/applications/@me`) without printing the token.
+- Discord openers = agent cron (`--mode agent` gate, `{"wakeAgent": false}` skip) delivering `discord:<dm chat_id>` with `attach_to_session: true` + `enabled_toolsets: []` set via `cron.jobs.update_job` (CLI lacks these flags). In a DM the delivery is mirrored flat into the DM session as a user-role `[Cron delivery: <job>]` turn — exclude it from learner-activity timers and never Tutor-correct it.
+- Test cron prompt changes with a temporary `--deliver local` job and read `cron/output/<id>/` — don't spam the learner's DM.
+
 ## Pitfalls
 - `aietest` is a throwaway verification profile; don't ship personas from it.
 - Ask before creating real profiles or cron jobs; report the model actually used (check `hermes auth list` / `hermes config get model` — don't assume the chat session's provider is available to profiles).
