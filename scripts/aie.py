@@ -390,6 +390,7 @@ def remove_persona(pid: str, purge: bool = False):
         for f in (ROOT / "data" / "state").glob(f"{pid}.json*"):
             f.unlink()
         shutil.rmtree(ROOT / "data" / "logs" / pid, ignore_errors=True)
+        (ROOT / "data" / "facts" / f"{pid}.md").unlink(missing_ok=True)
         (ROOT / "data" / "tmp" / f"{pid}.json").unlink(missing_ok=True)
         topics.update_learner_md()  # drop its mistakes from the auto block
         print("  state/logs purged")

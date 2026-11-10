@@ -101,7 +101,8 @@ def opener_request(pid: str, cfg: dict, st: dict) -> str:
     name = learner.get("name", "the learner")
     theme = topics.suggest_topic(pid, cfg.get("persona", {}).get("topic_themes", []))
     recent = [h["title"] for h in st["history"][-8:]]
-    notes = read_text(ROOT / "data" / "learner.md")
+    notes = read_text(ROOT / "data" / "learner.md")          # shared: learning results only
+    facts = topics.read_facts(pid)                             # private to this persona
     return "\n".join([
         "[AIEnglish opener request]",
         f"Start a NEW topic with {name} as {cfg['display_name']}, in character.",
@@ -112,7 +113,10 @@ def opener_request(pid: str, cfg: dict, st: dict) -> str:
         f"- Call them by name. 1–2 short sentences at {cfg['level']} level, end with a question. English only.",
         f"- Output format exactly: 💬 {cfg['display_name']}: <message>   (no Tutor section, no other text)",
         "",
-        "Learner notes:",
+        f"What YOU ({cfg['display_name']}) know about {name} from your own past chats (only use these personal facts):",
+        "\n".join(f"- {f}" for f in facts[-15:]) or "(nothing yet — ask about them)",
+        "",
+        "Learner's recurring mistakes (shared learning results):",
         notes.strip() or "(none)",
     ])
 

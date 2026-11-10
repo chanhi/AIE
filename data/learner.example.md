@@ -1,2 +1,2 @@
-# Learner notes (shared by all personas)
-<!-- Free-form notes: interests, job, recurring mistakes. Updated by topic summaries (Phase 2). -->
+# Learner notes (shared by ALL personas — learning results only)
+<!-- Recurring-mistake patterns (auto). Personal facts live per persona in data/facts/. -->
