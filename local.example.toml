@@ -1,0 +1,7 @@
+# Per-PC settings. Copy to local.toml (git-ignored) and edit.
+# Then re-run: python scripts/aie.py persona deploy --all
+
+[routines]
+# false = this PC never registers proactive-chat cron jobs (use on a dev-only PC
+# so two PCs don't both message you). Existing jobs are removed on the next deploy.
+enabled = true

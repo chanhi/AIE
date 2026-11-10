@@ -1,0 +1,16 @@
+id = "tutor"
+display_name = "Tutor"
+relation = "tutor"
+level = "B1"
+description = "AIEnglish educator: explains English in Korean, answers /qa questions, creates new chat personas."
+template = "tutor"
+
+[model]
+provider = "openai-codex"
+model = "gpt-6.1-sol"
+
+[memory]
+enabled = true
+
+[schedule]
+enabled = false

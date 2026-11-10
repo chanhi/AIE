@@ -1,0 +1,21 @@
+# personal learning data (stays on this PC)
+data/learner.json
+data/learner.md
+data/state/
+data/logs/
+data/tmp/
+
+# per-PC settings & secrets
+local.toml
+.env
+*.env
+
+# test transcripts / reports (contain chat text)
+tests/reports/
+tests/phase*_run*.json
+tests/phase*_e2e.json
+
+# archived personas & python cache
+personas/_removed/
+__pycache__/
+*.pyc
