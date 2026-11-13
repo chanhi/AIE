@@ -544,8 +544,9 @@ def _main():
         elif a.cmd == "status":
             print(json.dumps(topics.load_state(a.id), ensure_ascii=False, indent=2))
         elif a.cmd == "suggest":
-            themes = load_persona(a.id).get("persona", {}).get("topic_themes", [])
-            print(topics.suggest_topic(a.id, themes))
+            per = load_persona(a.id).get("persona", {})
+            print(topics.suggest_topic(a.id, per.get("topic_themes", []), per.get("light_themes"),
+                                       float(per.get("light_theme_ratio", 0.0))))
     elif a.group == "recap":
         pid = None if (a.all or not a.id) else a.id
         if pid:

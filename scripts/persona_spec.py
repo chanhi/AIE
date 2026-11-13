@@ -67,6 +67,21 @@ def validate(spec: dict, existing_ids: set[str], existing_profiles: set[str],
                 errs.append(f"persona.{f}가 비어 있어요")
                 continue
             persona[f] = int(v) if f == "age" and str(v).isdigit() else str(v)
+    # optional: occasional small-talk themes + ratio, and an opener focus line
+    lt = persona_in.get("light_themes")
+    if isinstance(lt, str):
+        lt = [x.strip() for x in lt.split(",") if x.strip()]
+    if lt:
+        persona["light_themes"] = [str(x) for x in lt]
+        try:
+            ratio = float(persona_in.get("light_theme_ratio", 0.2))
+            if not 0 <= ratio <= 1:
+                raise ValueError
+            persona["light_theme_ratio"] = ratio
+        except (TypeError, ValueError):
+            errs.append("persona.light_theme_ratio는 0~1 사이 숫자여야 해요")
+    if persona_in.get("opener_focus"):
+        persona["opener_focus"] = str(persona_in["opener_focus"])
     if "age" in persona and not (isinstance(persona["age"], int) and 16 <= persona["age"] <= 90):
         errs.append("persona.age는 16~90 사이 숫자여야 해요")
     if len(persona.get("topic_themes", [])) < 3:

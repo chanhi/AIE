@@ -258,17 +258,44 @@ def update_learner_md(new_facts: list[str] | None = None):
 
 
 # ---------------------------------------------------------------- suggest
-def suggest_topic(pid: str, themes: list[str]) -> str:
-    """Pick the least-recently-used theme (random among ties)."""
-    if not themes:
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+THEME_MEMORY = 30
+
+
+def _day_ok(theme: str, today: int) -> bool:
+    """A theme naming a weekday ('weekend small talk on Monday') only fits that day."""
+    named = [i for i, d in enumerate(WEEKDAYS) if d in theme.lower()]
+    return not named or today in named
+
+
+def _least_recent(themes: list[str], used: list[str]) -> str:
+    """Least-recently-used by exact theme (rank in `used`, newest last); random among ties."""
+    def age(t: str) -> int:
+        return used[::-1].index(t) if t in used else 10_000
+    best = max(age(t) for t in themes)
+    return random.choice([t for t in themes if age(t) == best])
+
+
+def suggest_topic(pid: str, themes: list[str], light_themes: list[str] | None = None,
+                  light_ratio: float = 0.0, today: int | None = None) -> str:
+    """Pick the next opener theme.
+
+    - `themes` = the relationship's main themes; `light_themes` = occasional small talk,
+      chosen with probability `light_ratio` (e.g. coworker: work topics 80%, small talk 20%).
+    - Rotation uses the exact themes already offered (state['used_themes']), so every theme
+      comes round before any repeats — even when the learner ignored an opener.
+    - Themes that name a weekday are only used on that day.
+    """
+    from datetime import date
+    today = date.today().weekday() if today is None else today
+    used = load_state(pid).get("used_themes", [])
+    main = [t for t in themes if _day_ok(t, today)]
+    light = [t for t in (light_themes or []) if _day_ok(t, today)]
+    pool = light if light and (not main or random.random() < light_ratio) else main
+    if not pool:
         return "anything the learner might enjoy talking about"
-    st = load_state(pid)
-    recent = [h["title"].lower() for h in st["history"][-10:]]
-    def staleness(theme: str) -> int:
-        t = theme.lower()
-        for i, title in enumerate(reversed(recent)):
-            if any(w in title for w in t.split() if len(w) > 3):
-                return i
-        return 999
-    best = max(staleness(t) for t in themes)
-    return random.choice([t for t in themes if staleness(t) == best])
+    return _least_recent(pool, used)
+
+
+def remember_theme(st: dict, theme: str) -> None:
+    st["used_themes"] = (st.get("used_themes", []) + [theme])[-THEME_MEMORY:]

@@ -21,7 +21,9 @@ Send ONE message listing these, each with its default, and say "비워 두면 �
 ## Step 2 — fill gaps and confirm
 - Invent a coherent, specific persona for anything left blank (name fitting the origin; 3–5 traits; 3–5 interests;
   a concrete `speech_style`; `feedback_focus` = what the Tutor should watch for in THIS relationship;
-  5–8 `topic_themes` typical for the relationship). Keep romantic personas wholesome (PG) and cap pet names
+  6–12 `topic_themes` that are the CORE of the relationship (e.g. coworker → concrete work situations).
+  Casual side topics go to optional `light_themes` with `light_theme_ratio` (e.g. 0.2), and add an
+  `opener_focus` sentence describing what a typical opener should be about). Keep romantic personas wholesome (PG) and cap pet names
   ("at most once every 3–4 messages") inside `speech_style`.
 - Show a compact Korean summary table (이름/id, 관계, 레벨, 성격, 관심사, 말투, 주제 예시, 스케줄, 모델) and ask
   "이대로 만들까요?". Apply any change requests and confirm again. **Never create before an explicit yes.**

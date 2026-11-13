@@ -111,5 +111,25 @@ class GateTest(unittest.TestCase):
         self.assertIn("📝 이번 주제 정리", msg)
 
 
+class SuggestTest(unittest.TestCase):
+    def pick(self, used, today=2, ratio=0.0, n=1):
+        st = topics._empty_state(); st["used_themes"] = used
+        with mock.patch.object(topics, "load_state", return_value=st):
+            return [topics.suggest_topic("x", ["work A", "work B"], ["lunch", "weekend on Monday"],
+                                         ratio, today) for _ in range(n)]
+
+    def test_rotation_by_exact_theme(self):
+        self.assertEqual(self.pick(["work A"]), ["work B"])
+
+    def test_main_themes_dominate(self):
+        self.assertTrue(all(t.startswith("work") for t in self.pick([], ratio=0.0, n=20)))
+
+    def test_light_ratio_one_uses_light(self):
+        self.assertEqual(self.pick([], ratio=1.0, today=2), ["lunch"])  # Wednesday: no Monday theme
+
+    def test_weekday_theme_only_on_that_day(self):
+        self.assertIn(self.pick(["lunch"], ratio=1.0, today=0)[0], ["weekend on Monday"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

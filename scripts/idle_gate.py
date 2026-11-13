@@ -146,15 +146,22 @@ def read_text(p: Path, limit: int = 1500) -> str:
 def opener_request(pid: str, cfg: dict, st: dict) -> str:
     learner = json.loads(read_text(ROOT / "data" / "learner.json", 10_000) or "{}")
     name = learner.get("name", "the learner")
-    theme = topics.suggest_topic(pid, cfg.get("persona", {}).get("topic_themes", []))
+    per = cfg.get("persona", {})
+    theme = topics.suggest_topic(pid, per.get("topic_themes", []), per.get("light_themes"),
+                                 float(per.get("light_theme_ratio", 0.0)))
+    topics.remember_theme(st, theme)
+    is_light = theme in (per.get("light_themes") or [])
+    focus = per.get("opener_focus", "")
     recent = [h["title"] for h in st["history"][-8:]]
     notes = read_text(ROOT / "data" / "learner.md")          # shared: learning results only
     facts = topics.read_facts(pid)                             # private to this persona
     return "\n".join([
         "[AIEnglish opener request]",
         f"Start a NEW topic with {name} as {cfg['display_name']}, in character.",
-        f"- Suggested theme: {theme} — turn it into a specific, personal question "
-        f"(use what you remember about {name}; mention something from your own life too).",
+        f"- Theme for this opener (MUST use it): {theme} — make it a specific, concrete situation"
+        + (" (light small talk is fine here)." if is_light else
+           (f". {focus}" if focus else f"; you may mention something from your own life.")),
+        f"- Use what you remember about {name} only if it fits the theme.",
         f"- Avoid repeating recent topics: {', '.join(recent) if recent else '(none yet)'}",
         "- If natural, create a chance for the learner to practice one of their recurring mistakes below.",
         f"- Call them by name. 1–2 short sentences at {cfg['level']} level, end with a question. English only.",
